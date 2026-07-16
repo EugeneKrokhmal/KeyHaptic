@@ -52,7 +52,6 @@ final class KeyboardHapticMonitor {
     private var lastScrollActuation = Date.distantPast
     private var lastEventAt = Date()
     private var scrollAccumulator: Double = 0
-    /// Sticky: CGEvent often only tags `.began`, then phase goes 0 while finger still moves.
     private var isFingerScrolling = false
     private let stateLock = NSLock()
     private let engine = HapticEngineFactory.make()
@@ -130,7 +129,6 @@ final class KeyboardHapticMonitor {
         hasInputAccess = CGPreflightListenEventAccess()
         hasAccessibility = AXIsProcessTrusted()
 
-        // Clear sticky finger state if scroll went idle.
         stateLock.lock()
         if isFingerScrolling, Date().timeIntervalSince(lastEventAt) > 0.35 {
             isFingerScrolling = false
@@ -138,7 +136,6 @@ final class KeyboardHapticMonitor {
         }
         stateLock.unlock()
 
-        // Keep tap alive — macOS disables it if a callback was previously slow.
         if let eventTap {
             CGEvent.tapEnable(tap: eventTap, enable: true)
         }
@@ -148,10 +145,8 @@ final class KeyboardHapticMonitor {
             return
         }
 
-        // If tap exists but no events for a while while we have permission, recreate it.
         let quiet = Date().timeIntervalSince(lastEventAt) > 30
         if isEnabled, hasInputAccess, quiet, eventTap != nil, keyCount == 0, scrollTickCount == 0 {
-            // Only recreate shortly after launch when we expect activity; skip once we've seen events.
         }
 
         isListening = eventTap != nil || globalKeyMonitor != nil
@@ -184,8 +179,6 @@ final class KeyboardHapticMonitor {
         hasInputAccess = CGPreflightListenEventAccess()
         hasAccessibility = AXIsProcessTrusted()
 
-        // Only create a CG tap when Input Monitoring is actually granted.
-        // Otherwise tapCreate can succeed but never deliver events (zombie tap).
         if eventTap == nil, hasInputAccess {
             eventTap = createTap(at: .cgSessionEventTap) ?? createTap(at: .cghidEventTap)
             if let tap = eventTap {
@@ -207,7 +200,6 @@ final class KeyboardHapticMonitor {
             runLoopSource = nil
         }
 
-        // NSEvent monitors only work with Accessibility.
         if globalKeyMonitor == nil, hasAccessibility {
             globalKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
                 self?.handleKey(isRepeat: event.isARepeat, source: "nsevent")
@@ -260,7 +252,6 @@ final class KeyboardHapticMonitor {
             return Unmanaged.passUnretained(event)
         }
 
-        // Keep the callback tiny — only copy fields, then hop to main.
         if type == .keyDown {
             let isRepeat = event.getIntegerValueField(.keyboardEventAutorepeat) != 0
             DispatchQueue.main.async { [weak self] in
@@ -330,8 +321,6 @@ final class KeyboardHapticMonitor {
             stateLock.unlock()
             return
         }
-        // Continuous / gentle slides often have phase=0 after the first event.
-        // Still treat them as finger scrolling while deltas keep arriving.
         if phaseRaw == 0, momentumRaw == 0, delta > 0.01 {
             isFingerScrolling = true
         }
@@ -349,7 +338,6 @@ final class KeyboardHapticMonitor {
         lastEventAt = Date()
         scrollAccumulator += delta
 
-        // Finer notches while finger-dragging gently; a bit wider in momentum.
         let baseNotch = max(4.0, scrollTickDistance)
         let notch = isFingerScrolling && !inMomentum
             ? max(3.0, baseNotch * 0.55)
@@ -359,7 +347,6 @@ final class KeyboardHapticMonitor {
         while scrollAccumulator >= notch && fires < 5 {
             scrollAccumulator -= notch
             let now = Date()
-            // Slightly denser while dragging so slow slides still tick.
             let minGap = isFingerScrolling && !inMomentum ? 0.012 : 0.016
             if now.timeIntervalSince(lastScrollActuation) >= minGap {
                 lastScrollActuation = now

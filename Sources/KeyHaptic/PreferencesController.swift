@@ -1,6 +1,5 @@
 import AppKit
 
-/// Compact preferences panel with intensity sliders.
 final class PreferencesController: NSObject {
     private let monitor: KeyboardHapticMonitor
     private var window: NSWindow?

@@ -25,9 +25,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
         }
 
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         statusItem.button?.image = statusBarImage(listening: false)
         statusItem.button?.imagePosition = .imageOnly
+        statusItem.button?.imageScaling = .scaleProportionallyUpOrDown
 
         let menu = NSMenu()
         menu.delegate = self
@@ -43,9 +44,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func statusBarImage(listening: Bool) -> NSImage {
         if let url = Bundle.main.url(forResource: "StatusIcon", withExtension: "png"),
            let image = NSImage(contentsOf: url) {
-            image.isTemplate = true
-            image.size = NSSize(width: 18, height: 18)
-            return image
+            let img = image.copy() as! NSImage
+            img.isTemplate = true
+            img.size = NSSize(width: 18, height: 18)
+            return img
         }
         let name = listening ? "hand.tap.fill" : "hand.raised.slash"
         let image = NSImage(systemSymbolName: name, accessibilityDescription: "KeyHaptic")!

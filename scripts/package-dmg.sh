@@ -19,7 +19,6 @@ mkdir -p "$STAGE"
 cp -R "$APP" "$STAGE/KeyHaptic.app"
 ln -s /Applications "$STAGE/Applications"
 
-# Short install note for first-run permissions
 cat > "$STAGE/Permissions.txt" <<'EOF'
 After installing KeyHaptic to Applications:
 
@@ -40,7 +39,6 @@ hdiutil create \
   -imagekey zlib-level=9 \
   "$DMG_PATH"
 
-# Ad-hoc sign the DMG (optional; notarization needs Developer ID)
 codesign --force --sign - "$DMG_PATH" 2>/dev/null || true
 
 rm -rf "$(dirname "$STAGE")"

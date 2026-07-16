@@ -1,7 +1,5 @@
 import AppKit
 
-/// App Store–safe haptics via public AppKit API.
-/// Weaker than MultitouchSupport, but review-compliant.
 final class PublicHapticEngine: HapticEngine {
     @discardableResult
     func play(intensity: HapticIntensity) -> Bool {

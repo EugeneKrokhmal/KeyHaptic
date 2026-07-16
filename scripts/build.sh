@@ -22,7 +22,6 @@ for arg in "$@"; do
   esac
 done
 
-# Refresh icon assets (prefer cap-icon.png, fall back to icon.png)
 ICON_SRC=""
 if [[ -f "$ROOT/cap-icon.png" ]]; then
   ICON_SRC="$ROOT/cap-icon.png"
@@ -39,8 +38,8 @@ if [[ -n "$ICON_SRC" ]]; then
     sips -z $((s*2)) $((s*2)) "$ICON_SRC" --out "$ICONSET/icon_${s}x${s}@2x.png" >/dev/null
   done
   iconutil -c icns "$ICONSET" -o "$ROOT/Resources/AppIcon.icns"
-  sips -z 18 18 "$ICON_SRC" --out "$ROOT/Resources/StatusIcon.png" >/dev/null
-  sips -z 36 36 "$ICON_SRC" --out "$ROOT/Resources/StatusIcon@2x.png" >/dev/null
+  swift "$ROOT/scripts/make-status-icon.swift" "$ICON_SRC" 36 "$ROOT/Resources/StatusIcon.png"
+  swift "$ROOT/scripts/make-status-icon.swift" "$ICON_SRC" 72 "$ROOT/Resources/StatusIcon@2x.png"
 fi
 
 swift build -c release
@@ -82,8 +81,6 @@ codesign --force --deep --sign - \
   --entitlements "$ROOT/Resources/KeyHaptic.entitlements" \
   "$INSTALL"
 
-# Always clear TCC — ad-hoc rebuilds invalidate the previous grant, and a
-# stale "on" toggle in System Settings leaves a zombie tap that never receives events.
 echo "Resetting Input Monitoring + Accessibility for $BUNDLE_ID…"
 tccutil reset ListenEvent "$BUNDLE_ID" >/dev/null 2>&1 || true
 tccutil reset Accessibility "$BUNDLE_ID" >/dev/null 2>&1 || true

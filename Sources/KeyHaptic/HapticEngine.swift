@@ -1,6 +1,5 @@
 import Foundation
 
-/// Shared intensity levels for both public and private haptic backends.
 enum HapticIntensity: Int, CaseIterable, Identifiable {
     case soft = 1
     case light = 2
@@ -33,7 +32,6 @@ enum HapticEngineFactory {
         #if APPSTORE
         return PublicHapticEngine()
         #else
-        // Strong trackpad actuator (not App Store–safe — private MultitouchSupport).
         if MultitouchHapticEngine.isAvailable {
             return MultitouchHapticEngine()
         }

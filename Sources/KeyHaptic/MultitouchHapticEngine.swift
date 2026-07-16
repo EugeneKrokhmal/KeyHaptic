@@ -2,8 +2,6 @@ import Foundation
 import IOKit
 import Darwin
 
-/// Force Touch actuator via MultitouchSupport (private API).
-/// Use for Developer ID / direct distribution only — not Mac App Store.
 final class MultitouchHapticEngine: HapticEngine {
     private static let lock = NSLock()
     private static var actuator: CFTypeRef?
