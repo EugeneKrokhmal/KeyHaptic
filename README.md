@@ -1,58 +1,85 @@
 # KeyHaptic
 
-Minimal macOS menu bar utility that plays Force Touch trackpad haptics when you type, and Alarm Clock–style picker ticks when you scroll.
+macOS menu bar app that makes typing and scrolling feel physical — short Force Touch trackpad taps on every keypress, and Alarm-style detent ticks when you scroll.
 
-**Repository:** [github.com/EugeneKrokhmal/KeyHaptic](https://github.com/EugeneKrokhmal/KeyHaptic)
+<p align="center">
+  <img src="icon.png" width="96" alt="KeyHaptic icon">
+</p>
+
+## Features
+
+- **Key haptics** — click on each key down (ignores key repeat)
+- **Picker scroll** — ticks while you drag *and* during momentum (like the iPhone Alarm wheel)
+- **Intensities** — sliders for key strength, scroll strength, and notch spacing
+- **Menu bar only** — no Dock icon, stays out of the way
 
 ## Requirements
 
 - macOS 13+
-- Force Touch trackpad (MacBook or Magic Trackpad)
-- **Input Monitoring** and **Accessibility** permissions
+- Force Touch trackpad (MacBook / Magic Trackpad)
+- Input Monitoring + Accessibility permissions
 
-## Build & run (direct / Developer ID)
+## Install from source
 
 ```bash
+git clone https://github.com/EugeneKrokhmal/KeyHaptic.git
+cd KeyHaptic
 ./scripts/build.sh
 ```
 
-This installs `/Applications/KeyHaptic.app`, resets TCC for the ad-hoc signed binary, and opens System Settings. Then:
+That builds a release binary, installs it to `/Applications/KeyHaptic.app`, and opens the privacy panes.
 
-1. Enable **KeyHaptic** under Input Monitoring  
-2. Enable **KeyHaptic** under Accessibility  
-3. Choose **Quit & Reopen**
+Then:
 
-Menu bar → **Intensities…** for key/scroll strength and picker notch size.
+1. Enable **KeyHaptic** in **Input Monitoring**
+2. Enable **KeyHaptic** in **Accessibility**
+3. Hit **Quit & Reopen**
 
-## Distribution notes (important)
+Ad-hoc rebuilds invalidate TCC — the build script resets those grants on purpose so you don’t get a zombie “on” toggle that silently does nothing.
 
-| Path | Haptic backend | Apple acceptance |
-|------|----------------|------------------|
-| **Direct download / notarized Developer ID** | MultitouchSupport actuator (strong) | Gatekeeper via notarization |
-| **Mac App Store** | Public `NSHapticFeedbackManager` only | Required — private MultitouchSupport is rejected |
+## Usage
 
-The default build uses the strong Multitouch actuator (same approach as open-source tools like HapticKey). That API is **private** and **will not pass Mac App Store review**.
+Click the menu bar icon:
 
-### App Store build (weaker haptics)
+| Item | What it does |
+|------|----------------|
+| Haptics | Master on/off |
+| Picker scroll | Scroll ticks on/off |
+| Intensities… | Key / scroll strength + notch size |
+| Key length / frequency | Multi-pulse key feel |
+| Test haptic | Fire a sample click |
 
-```bash
-swift build -c release -Xswiftc -DAPPSTORE
-# then package with sandbox entitlements in Resources/KeyHaptic.AppStore.entitlements
+## How it works
+
+- Listens for `keyDown` and `scrollWheel` via a `CGEvent` tap (Input Monitoring), with an `NSEvent` fallback when Accessibility is granted
+- Drives the trackpad through MultitouchSupport’s actuator API (same idea as [HapticKey](https://github.com/niw/HapticKey))
+- Falls back to public `NSHapticFeedbackManager` if the actuator isn’t available
+
+> **Note:** MultitouchSupport is a private framework. That’s fine for open source / direct install. It is **not** Mac App Store–safe. For an App Store–oriented build (weaker haptics):
+>
+> ```bash
+> swift build -c release -Xswiftc -DAPPSTORE
+> ```
+
+## Project layout
+
+```
+Sources/KeyHaptic/     Swift sources
+Resources/             Info.plist, icons, entitlements
+scripts/build.sh       Build → .app → /Applications
+icon.png               Source artwork
 ```
 
-You still need a full Xcode archive, App Store Connect listing, and screenshots. Expect much weaker feedback than the direct build.
+## Contributing
 
-### Notarization (recommended for public releases)
+PRs welcome. Keep it small: this is meant to stay a thin menu bar utility.
 
-1. Apple Developer Program membership  
-2. **Developer ID Application** certificate (not only “Apple Development”)  
-3. Sign with hardened runtime + notarize (`notarytool`)  
-4. Staple the ticket to the `.app` / `.dmg`
+Ideas that fit well:
 
-## Privacy
-
-KeyHaptic listens for keyboard and scroll events **on-device only** to trigger haptics. No key contents, text, or analytics are collected or transmitted.
+- Better actuator discovery across Mac models
+- Optional launch-at-login
+- Separate profiles (e.g. coding vs browsing)
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+[MIT](LICENSE)
