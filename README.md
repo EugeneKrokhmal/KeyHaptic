@@ -75,8 +75,9 @@ Click the menu bar icon:
 ```
 Sources/KeyHaptic/     Swift sources
 Resources/             Info.plist, icons, entitlements
-scripts/build.sh       Build → .app → /Applications
-icon.png               Source artwork
+scripts/build.sh       Build → .app → DMG → /Applications
+cap-icon.png           App / menu bar artwork
+docs/icon.png          README hero
 ```
 
 ## Contributing

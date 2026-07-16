@@ -22,17 +22,25 @@ for arg in "$@"; do
   esac
 done
 
-# Refresh icon assets from icon.png when present
-if [[ -f "$ROOT/icon.png" ]]; then
+# Refresh icon assets (prefer cap-icon.png, fall back to icon.png)
+ICON_SRC=""
+if [[ -f "$ROOT/cap-icon.png" ]]; then
+  ICON_SRC="$ROOT/cap-icon.png"
+  cp -f "$ICON_SRC" "$ROOT/icon.png"
+elif [[ -f "$ROOT/icon.png" ]]; then
+  ICON_SRC="$ROOT/icon.png"
+fi
+
+if [[ -n "$ICON_SRC" ]]; then
   ICONSET="$(mktemp -d)/KeyHaptic.iconset"
   mkdir -p "$ICONSET"
   for s in 16 32 128 256 512; do
-    sips -z $s $s "$ROOT/icon.png" --out "$ICONSET/icon_${s}x${s}.png" >/dev/null
-    sips -z $((s*2)) $((s*2)) "$ROOT/icon.png" --out "$ICONSET/icon_${s}x${s}@2x.png" >/dev/null
+    sips -z $s $s "$ICON_SRC" --out "$ICONSET/icon_${s}x${s}.png" >/dev/null
+    sips -z $((s*2)) $((s*2)) "$ICON_SRC" --out "$ICONSET/icon_${s}x${s}@2x.png" >/dev/null
   done
   iconutil -c icns "$ICONSET" -o "$ROOT/Resources/AppIcon.icns"
-  sips -z 18 18 "$ROOT/icon.png" --out "$ROOT/Resources/StatusIcon.png" >/dev/null
-  sips -z 36 36 "$ROOT/icon.png" --out "$ROOT/Resources/StatusIcon@2x.png" >/dev/null
+  sips -z 18 18 "$ICON_SRC" --out "$ROOT/Resources/StatusIcon.png" >/dev/null
+  sips -z 36 36 "$ICON_SRC" --out "$ROOT/Resources/StatusIcon@2x.png" >/dev/null
 fi
 
 swift build -c release
