@@ -1,0 +1,75 @@
+#!/bin/zsh
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
+
+BUNDLE_ID="com.keyhaptic.app"
+APP_NAME="KeyHaptic.app"
+DIST="$ROOT/dist/$APP_NAME"
+INSTALL="/Applications/$APP_NAME"
+
+# Refresh icon assets from icon.png when present
+if [[ -f "$ROOT/icon.png" ]]; then
+  ICONSET="$(mktemp -d)/KeyHaptic.iconset"
+  mkdir -p "$ICONSET"
+  for s in 16 32 128 256 512; do
+    sips -z $s $s "$ROOT/icon.png" --out "$ICONSET/icon_${s}x${s}.png" >/dev/null
+    sips -z $((s*2)) $((s*2)) "$ROOT/icon.png" --out "$ICONSET/icon_${s}x${s}@2x.png" >/dev/null
+  done
+  iconutil -c icns "$ICONSET" -o "$ROOT/Resources/AppIcon.icns"
+  sips -z 18 18 "$ROOT/icon.png" --out "$ROOT/Resources/StatusIcon.png" >/dev/null
+  sips -z 36 36 "$ROOT/icon.png" --out "$ROOT/Resources/StatusIcon@2x.png" >/dev/null
+fi
+
+swift build -c release
+BINARY="$ROOT/.build/release/KeyHaptic"
+
+killall KeyHaptic 2>/dev/null || true
+sleep 0.3
+
+rm -rf "$DIST"
+mkdir -p "$DIST/Contents/MacOS"
+mkdir -p "$DIST/Contents/Resources"
+
+cp "$BINARY" "$DIST/Contents/MacOS/KeyHaptic"
+cp "$ROOT/Resources/Info.plist" "$DIST/Contents/Info.plist"
+cp "$ROOT/Resources/AppIcon.icns" "$DIST/Contents/Resources/AppIcon.icns"
+cp "$ROOT/Resources/StatusIcon.png" "$DIST/Contents/Resources/StatusIcon.png"
+cp "$ROOT/Resources/StatusIcon@2x.png" "$DIST/Contents/Resources/StatusIcon@2x.png"
+
+codesign --force --deep --sign - \
+  --identifier "$BUNDLE_ID" \
+  --entitlements "$ROOT/Resources/KeyHaptic.entitlements" \
+  "$DIST"
+
+rm -rf "$INSTALL"
+cp -R "$DIST" "$INSTALL"
+codesign --force --deep --sign - \
+  --identifier "$BUNDLE_ID" \
+  --entitlements "$ROOT/Resources/KeyHaptic.entitlements" \
+  "$INSTALL"
+
+# Always clear TCC — ad-hoc rebuilds invalidate the previous grant, and a
+# stale "on" toggle in System Settings leaves a zombie tap that never receives events.
+echo "Resetting Input Monitoring + Accessibility for $BUNDLE_ID…"
+tccutil reset ListenEvent "$BUNDLE_ID" >/dev/null 2>&1 || true
+tccutil reset Accessibility "$BUNDLE_ID" >/dev/null 2>&1 || true
+
+rm -f "$HOME/Library/Logs/KeyHaptic.log"
+
+open "$INSTALL"
+sleep 0.6
+open "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent"
+sleep 0.3
+open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+
+echo ""
+echo "Built & installed: $INSTALL"
+echo ""
+echo "REQUIRED after every build:"
+echo "  1. Input Monitoring  → enable KeyHaptic"
+echo "  2. Accessibility     → enable KeyHaptic"
+echo "  3. Click Quit & Reopen (or run: killall KeyHaptic; open /Applications/KeyHaptic.app)"
+echo ""
+echo "Menu should then say: Listening — type or scroll"

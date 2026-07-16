@@ -1,0 +1,29 @@
+# Build
+.build/
+dist/
+DerivedData/
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*~
+
+# Logs / local
+*.log
+.env
+.env.*
+
+# Signing / certificates
+*.p12
+*.cer
+*.mobileprovision
+*.provisionprofile
+Secrets/
