@@ -61,7 +61,7 @@ Click the menu bar icon:
 ## How it works
 
 - Listens for `keyDown` and `scrollWheel` via a `CGEvent` tap (Input Monitoring), with an `NSEvent` fallback when Accessibility is granted
-- Drives the trackpad through MultitouchSupport’s actuator API (same idea as [HapticKey](https://github.com/niw/HapticKey))
+- Drives the trackpad through MultitouchSupport’s actuator API
 - Falls back to public `NSHapticFeedbackManager` if the actuator isn’t available
 
 > **Note:** MultitouchSupport is a private framework. That’s fine for open source / direct install. It is **not** Mac App Store–safe. For an App Store–oriented build (weaker haptics):
