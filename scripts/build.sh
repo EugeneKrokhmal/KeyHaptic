@@ -9,6 +9,19 @@ APP_NAME="KeyHaptic.app"
 DIST="$ROOT/dist/$APP_NAME"
 INSTALL="/Applications/$APP_NAME"
 
+SKIP_INSTALL=0
+MAKE_DMG=1
+for arg in "$@"; do
+  case "$arg" in
+    --skip-install) SKIP_INSTALL=1 ;;
+    --no-dmg) MAKE_DMG=0 ;;
+    --help|-h)
+      echo "Usage: ./scripts/build.sh [--skip-install] [--no-dmg]"
+      exit 0
+      ;;
+  esac
+done
+
 # Refresh icon assets from icon.png when present
 if [[ -f "$ROOT/icon.png" ]]; then
   ICONSET="$(mktemp -d)/KeyHaptic.iconset"
@@ -42,6 +55,17 @@ codesign --force --deep --sign - \
   --identifier "$BUNDLE_ID" \
   --entitlements "$ROOT/Resources/KeyHaptic.entitlements" \
   "$DIST"
+
+echo "Built: $DIST"
+
+if [[ "$MAKE_DMG" -eq 1 ]]; then
+  "$ROOT/scripts/package-dmg.sh"
+fi
+
+if [[ "$SKIP_INSTALL" -eq 1 ]]; then
+  echo "Skipping /Applications install (--skip-install)."
+  exit 0
+fi
 
 rm -rf "$INSTALL"
 cp -R "$DIST" "$INSTALL"

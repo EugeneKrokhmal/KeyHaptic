@@ -52,6 +52,8 @@ final class KeyboardHapticMonitor {
     private var lastScrollActuation = Date.distantPast
     private var lastEventAt = Date()
     private var scrollAccumulator: Double = 0
+    /// Sticky: CGEvent often only tags `.began`, then phase goes 0 while finger still moves.
+    private var isFingerScrolling = false
     private let stateLock = NSLock()
     private let engine = HapticEngineFactory.make()
     private let hapticQueue = DispatchQueue(label: "com.keyhaptic.haptic", qos: .userInteractive)
@@ -127,6 +129,14 @@ final class KeyboardHapticMonitor {
     private func maintainListeners() {
         hasInputAccess = CGPreflightListenEventAccess()
         hasAccessibility = AXIsProcessTrusted()
+
+        // Clear sticky finger state if scroll went idle.
+        stateLock.lock()
+        if isFingerScrolling, Date().timeIntervalSince(lastEventAt) > 0.35 {
+            isFingerScrolling = false
+            scrollAccumulator = 0
+        }
+        stateLock.unlock()
 
         // Keep tap alive — macOS disables it if a callback was previously slow.
         if let eventTap {
@@ -297,52 +307,64 @@ final class KeyboardHapticMonitor {
     }
 
     private func handleScroll(delta: Double, momentumRaw: UInt, phaseRaw: UInt, source: String) {
-        guard isEnabled, scrollEnabled, delta > 0.05 else { return }
+        guard isEnabled, scrollEnabled else { return }
 
         let momentum = NSEvent.Phase(rawValue: momentumRaw)
         let phase = NSEvent.Phase(rawValue: phaseRaw)
 
-        let fingerDragging = phase.contains(.began) || phase.contains(.changed)
         let inMomentum =
             momentumRaw != 0 &&
             !momentum.contains(.ended) &&
             !momentum.contains(.cancelled)
 
-        // Alarm picker ticks while you drag AND while it coasts.
-        let picking = fingerDragging || inMomentum
-
-        if momentum.contains(.ended) || momentum.contains(.cancelled) {
-            stateLock.lock()
-            scrollAccumulator = 0
-            stateLock.unlock()
-            return
-        }
-
-        if phase.contains(.ended), !inMomentum {
-            stateLock.lock()
-            scrollAccumulator = 0
-            stateLock.unlock()
-            return
-        }
-
-        guard picking else { return }
-
-        // One crisp detent per "row" — like UIPickerView / Alarm Clock.
-        let notch = max(6.0, scrollTickDistance)
-        var fires = 0
-
         stateLock.lock()
+        if phase.contains(.began) || phase.contains(.changed) || phase.contains(.stationary) {
+            isFingerScrolling = true
+        }
+        if phase.contains(.ended) || phase.contains(.cancelled) {
+            isFingerScrolling = false
+        }
+        if momentum.contains(.ended) || momentum.contains(.cancelled) {
+            isFingerScrolling = false
+            scrollAccumulator = 0
+            stateLock.unlock()
+            return
+        }
+        // Continuous / gentle slides often have phase=0 after the first event.
+        // Still treat them as finger scrolling while deltas keep arriving.
+        if phaseRaw == 0, momentumRaw == 0, delta > 0.01 {
+            isFingerScrolling = true
+        }
+
+        let picking = isFingerScrolling || inMomentum
+        if !picking {
+            stateLock.unlock()
+            return
+        }
+        if delta <= 0.01 {
+            stateLock.unlock()
+            return
+        }
+
         lastEventAt = Date()
         scrollAccumulator += delta
-        while scrollAccumulator >= notch && fires < 3 {
+
+        // Finer notches while finger-dragging gently; a bit wider in momentum.
+        let baseNotch = max(4.0, scrollTickDistance)
+        let notch = isFingerScrolling && !inMomentum
+            ? max(3.0, baseNotch * 0.55)
+            : baseNotch
+
+        var fires = 0
+        while scrollAccumulator >= notch && fires < 5 {
             scrollAccumulator -= notch
             let now = Date()
-            // Keep ticks distinct (picker never turns into a continuous buzz).
-            if now.timeIntervalSince(lastScrollActuation) >= 0.016 {
+            // Slightly denser while dragging so slow slides still tick.
+            let minGap = isFingerScrolling && !inMomentum ? 0.012 : 0.016
+            if now.timeIntervalSince(lastScrollActuation) >= minGap {
                 lastScrollActuation = now
                 fires += 1
             } else {
-                // Put the notch back; try again on the next event.
                 scrollAccumulator += notch
                 break
             }
@@ -357,7 +379,7 @@ final class KeyboardHapticMonitor {
 
         scrollTickCount += fires
         if scrollTickCount <= fires || scrollTickCount % 25 < fires {
-            log("picker #\(scrollTickCount) source=\(source)")
+            log("picker #\(scrollTickCount) source=\(source) finger=\(isFingerScrolling) mom=\(inMomentum)")
             onChange?()
         }
     }

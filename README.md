@@ -1,10 +1,10 @@
+<p align="center">
+  <img src="docs/icon.png" width="128" alt="KeyHaptic">
+</p>
+
 # KeyHaptic
 
 macOS menu bar app that makes typing and scrolling feel physical — short Force Touch trackpad taps on every keypress, and Alarm-style detent ticks when you scroll.
-
-<p align="center">
-  <img src="icon.png" width="96" alt="KeyHaptic icon">
-</p>
 
 ## Features
 
@@ -27,7 +27,16 @@ cd KeyHaptic
 ./scripts/build.sh
 ```
 
-That builds a release binary, installs it to `/Applications/KeyHaptic.app`, and opens the privacy panes.
+That builds a release binary, writes `dist/KeyHaptic.app`, packs `dist/KeyHaptic-*.dmg`, and installs to `/Applications`.
+
+**DMG only** (no TCC reset / no launch):
+
+```bash
+./scripts/build.sh --skip-install
+open dist/KeyHaptic-*.dmg
+```
+
+Drag **KeyHaptic** → **Applications** in the disk image.
 
 Then:
 
@@ -35,7 +44,7 @@ Then:
 2. Enable **KeyHaptic** in **Accessibility**
 3. Hit **Quit & Reopen**
 
-Ad-hoc rebuilds invalidate TCC — the build script resets those grants on purpose so you don’t get a zombie “on” toggle that silently does nothing.
+Ad-hoc rebuilds invalidate TCC — the full `./scripts/build.sh` resets those grants on purpose so you don’t get a zombie “on” toggle that silently does nothing.
 
 ## Usage
 
